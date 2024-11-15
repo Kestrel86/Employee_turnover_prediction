@@ -1,4 +1,5 @@
 # Random Forest Algorithm
+randomforest.py
 
 ## OUTPUT FROM CODE:
 
@@ -11,8 +12,8 @@ Classification Report:
         True       0.99      1.00      0.99       150
 
     accuracy                           1.00       441
-   macro avg       0.99      1.00      0.99       441
-weighted avg       1.00      1.00      1.00       441
+    macro avg       0.99      1.00      0.99       441
+    weighted avg       1.00      1.00      1.00       441
 
 
 Confusion Matrix:
