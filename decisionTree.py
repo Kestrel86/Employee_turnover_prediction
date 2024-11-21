@@ -24,7 +24,7 @@ def preprocess_data(data):
     
     # Separate features and target
     X = data.drop(columns='Attrition', errors='ignore')  # Drop target column
-    y = data['Attrition'].apply(lambda x: 1 if x == 'Yes' else 0)  # Convert target to binary
+    y = data['Attrition']
 
     # Encoding for categorical features
     X = pd.get_dummies(X, drop_first=True)
@@ -63,6 +63,24 @@ def evaluate_decision_tree(X_train, X_test, y_train, y_test, max_depth=4):
     plt.ylabel("True Positive Rate")
     plt.title("ROC Curve for Decision Tree Model")
     plt.legend(loc="lower right")
+    plt.show()
+
+# Feature Importance
+    feature_importances = model.feature_importances_
+    feature_names = X_train.columns
+    feature_imp_df = pd.DataFrame({"Feature": feature_names, "Importance": feature_importances})
+    feature_imp_df = feature_imp_df.sort_values(by="Importance", ascending=False)
+
+    print("\nTop Features by Importance:")
+    print(feature_imp_df.head(10))  # Display top 10 features in the console
+
+    # Plot feature importance
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x="Importance", y="Feature", data=feature_imp_df.head(10), palette="viridis")
+    plt.title("Top Feature Importances")
+    plt.xlabel("Importance")
+    plt.ylabel("Feature")
+    plt.tight_layout()
     plt.show()
 
     return model
