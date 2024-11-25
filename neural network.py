@@ -1,95 +1,128 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, roc_auc_score, roc_curve, auc
 from sklearn.ensemble import RandomForestClassifier
+import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.optimizers import Adam
-from sklearn.preprocessing import StandardScaler
 from keras.callbacks import EarlyStopping
-import matplotlib.pyplot as plt
 
+# -------------------- Data Loading and Preprocessing --------------------
 # Load the dataset
 data = pd.read_csv('employee_attrition_data.csv')
 
-# Encode categorical variables
+# Ensure the dataset includes an Employee ID column
+if 'EmployeeNumber' not in data.columns:
+    raise ValueError("The dataset must include an 'EmployeeID' column.")
+
+# Encode categorical variables using one-hot encoding
 data = pd.get_dummies(data, drop_first=True)
 
-# Split data into features and target
-X = data.drop('Attrition', axis=1)
+# Split the data into features (X) and target (y)
+X = data.drop(['Attrition', 'EmployeeNumber'], axis=1)  # Remove Attrition and EmployeeID from features
 y = data['Attrition']
 
-# Split data into train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+# Store Employee IDs for final output
+employee_ids = data['EmployeeNumber']
 
-# Ensure data is numeric for TensorFlow
+# Split data into training and test sets (70% train, 30% test)
+X_train, X_test, y_train, y_test, employee_ids_train, employee_ids_test = train_test_split(
+    X, y, employee_ids, test_size=0.3, random_state=42
+)
+
+# Ensure data is in numeric format for TensorFlow
 X_train = np.array(X_train, dtype=np.float32)
 X_test = np.array(X_test, dtype=np.float32)
 y_train = np.array(y_train, dtype=np.float32)
 y_test = np.array(y_test, dtype=np.float32)
 
-# ========== Baseline Model: Random Forest ==========
-def baseline_model(X_train, y_train, X_test):
-    rf_model = RandomForestClassifier(random_state=42)
-    rf_model.fit(X_train, y_train)
-    y_pred = rf_model.predict(X_test)
-    y_prob = rf_model.predict_proba(X_test)[:, 1]
-    return rf_model, y_pred, y_prob
+# -------------------- Baseline Model: Random Forest --------------------
+# Initialize and train the Random Forest model
+baseline_model = RandomForestClassifier(random_state=42)
+baseline_model.fit(X_train, y_train)
 
-# Train baseline model
-baseline_model, y_baseline_pred, y_baseline_prob = baseline_model(X_train, y_train, X_test)
+# Predict using the baseline model
+y_baseline_pred = baseline_model.predict(X_test)
+y_baseline_prob = baseline_model.predict_proba(X_test)[:, 1]
 
-# ========== Neural Network Model ==========
-def build_nn_model(input_dim):
-    model = Sequential([
-        Dense(128, input_dim=input_dim, activation='relu'),
-        Dropout(0.5),  # Dropout layer to prevent overfitting
-        Dense(64, activation='relu'),
-        Dropout(0.5),
-        Dense(32, activation='relu'),
-        Dense(1, activation='sigmoid')  # Binary classification output
-    ])
-    model.compile(optimizer=Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
-    return model
-
-# Scale features (Normalization or Standardization)
+# -------------------- Neural Network Model --------------------
+# Scale features for better model convergence (Normalization/Standardization)
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
-# Build and train neural network model
-nn_model = build_nn_model(X_train_scaled.shape[1])
+# Build the Neural Network model
+model = Sequential([
+    Dense(128, input_dim=X_train_scaled.shape[1], activation='relu'),
+    Dropout(0.5),  # Dropout to prevent overfitting
+    Dense(64, activation='relu'),
+    Dropout(0.5),
+    Dense(32, activation='relu'),
+    Dense(1, activation='sigmoid')  # Sigmoid for binary classification
+])
+
+# Compile the model
+model.compile(optimizer=Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
 
 # Early stopping to avoid overfitting
 early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
 
-history = nn_model.fit(X_train_scaled, y_train, epochs=50, batch_size=32, validation_data=(X_test_scaled, y_test), callbacks=[early_stopping])
+# Train the Neural Network
+history = model.fit(X_train_scaled, y_train, epochs=50, batch_size=32, validation_data=(X_test_scaled, y_test), callbacks=[early_stopping])
 
-# ========== Evaluate Models: Random Forest vs Neural Network ==========
-# Predict with the neural network
-y_nn_prob = nn_model.predict(X_test_scaled).flatten()
+# -------------------- Model Predictions --------------------
+# Predict using the neural network
+y_nn_prob = model.predict(X_test_scaled).flatten()
 y_nn_pred = (y_nn_prob > 0.5).astype(int)
 
-# ROC Curve and AUC score
-fpr, tpr, thresholds = roc_curve(y_test, y_nn_prob)
-roc_auc = auc(fpr, tpr)
-
-# Evaluate Test Accuracy
-nn_test_loss, nn_test_accuracy = nn_model.evaluate(X_test_scaled, y_test, verbose=0)
-
+# -------------------- Model Evaluation --------------------
+# Evaluate the neural network model
+nn_test_loss, nn_test_accuracy = model.evaluate(X_test_scaled, y_test, verbose=0)
 print(f"Neural Network Test Accuracy: {nn_test_accuracy * 100:.2f}%")
 
-# Classification report for Baseline Model
+# Classification report for the baseline model
 print("Classification Report for Baseline Model:")
 print(classification_report(y_test, y_baseline_pred))
 
-# Classification report for Neural Network Model
+# Classification report for the neural network model
 print("Classification Report for Neural Network Model:")
 print(classification_report(y_test, y_nn_pred))
+# -------------------- Save Employee Predictions to CSV --------------------
+# Create a DataFrame with Employee IDs, predictions, and probabilities
+output_df = pd.DataFrame({
+    'EmployeeNumber': employee_ids_test,      # Employee IDs
+    'PredictedAttrition': y_nn_pred,          # Predictions (1 = Leave, 0 = Stay)
+    'AttritionProbability': y_nn_prob        # Probability of Attrition
+})
 
-# ========== Plotting and Evaluation ==========
-# Plot ROC Curve
+# Add a human-readable label for the prediction
+output_df['PredictionLabel'] = output_df['PredictedAttrition'].map({1: 'Leave', 0: 'Stay'})
+
+# Save the predictions to a CSV file for later review
+output_filename = 'employee_attrition_predictions.csv'
+output_df.to_csv(output_filename, index=False)
+
+print(f"Predictions saved to {output_filename}.")
+print("\nSample Output of Employee Predictions:")
+print(output_df.head())
+
+
+# -------------------- Department Morale Calculation --------------------
+# Identify the department with the highest value for each employee
+data['Department'] = data.filter(like='Department_').idxmax(axis=1)
+
+# Calculate department morale (inverse of attrition rate)
+department_morale = data.groupby('Department')['Attrition'].mean().apply(lambda x: 1 - x)
+
+# -------------------- ROC Curve --------------------
+# Compute ROC Curve and AUC for the Neural Network
+fpr, tpr, thresholds = roc_curve(y_test, y_nn_prob)
+roc_auc = auc(fpr, tpr)
+
+# Plot the ROC curve
 plt.figure(figsize=(8, 6))
 plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (AUC = {roc_auc:.2f})')
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
@@ -121,22 +154,12 @@ plt.ylabel('Loss')
 plt.legend(loc='upper right')
 plt.show()
 
-# ========== Department Morale ==========
-def calculate_department_morale(data):
-    # Identify department column for each employee
-    data['Department'] = data.filter(like='Department_').idxmax(axis=1)
-    department_morale = data.groupby('Department')['Attrition'].mean().apply(lambda x: 1 - x)  # Inverse of attrition rate
-    return department_morale
-
-# Calculate and print department morale
-department_morale = calculate_department_morale(data)
-print("Department Morale (Higher is Better):")
+# -------------------- Department Morale Output --------------------
+# Print the morale for each department
+print("Department Morale (higher is better):")
 print(department_morale)
 
-# Add morale to the output data
-data['Morale'] = data['Department'].map(department_morale)
-
-# Plot department morale
+# Visualize department morale
 plt.figure(figsize=(10, 6))
 department_morale.sort_values().plot(kind='bar', color='skyblue', edgecolor='black')
 plt.title('Department Morale (Higher is Better)')
