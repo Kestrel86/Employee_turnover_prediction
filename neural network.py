@@ -9,7 +9,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
-
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 # -------------------- Data Loading and Preprocessing --------------------
 # Load the dataset
 data = pd.read_csv('employee_attrition_data.csv')
@@ -166,5 +166,30 @@ plt.title('Department Morale (Higher is Better)')
 plt.xlabel('Department')
 plt.ylabel('Morale')
 plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+# -------------------- Model Evaluation Outputs --------------------
+
+# Confusion Matrix
+conf_matrix = confusion_matrix(y_test, y_nn_pred)
+disp = ConfusionMatrixDisplay(confusion_matrix=conf_matrix, display_labels=['Stay', 'Leave'])
+disp.plot(cmap=plt.cm.Blues)
+plt.title("Confusion Matrix: Neural Network")
+plt.show()
+
+# Feature Importance Plot
+importances = baseline_model.feature_importances_
+feature_names = X.columns
+sorted_indices = np.argsort(importances)[::-1]
+sorted_features = feature_names[sorted_indices]
+sorted_importances = importances[sorted_indices]
+
+plt.figure(figsize=(10, 6))
+plt.barh(sorted_features, sorted_importances, color='skyblue', edgecolor='black')
+plt.xlabel('Importance')
+plt.ylabel('Feature')
+plt.title('Feature Importance')
+plt.gca().invert_yaxis()
 plt.tight_layout()
 plt.show()
