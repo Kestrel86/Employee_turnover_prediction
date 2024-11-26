@@ -14,7 +14,7 @@ print(df.head())       # First few rows
 
 
 # Drop unnecessary/redundant columns
-df.drop(columns=['EmployeeNumber', 'EmployeeCount', 'StandardHours', 'Over18'], inplace=True)
+df.drop(columns=['EmployeeCount', 'StandardHours', 'Over18'], inplace=True)
 
 
 # Check for missing values
