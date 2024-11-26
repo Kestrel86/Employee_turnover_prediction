@@ -3,21 +3,28 @@ randomforest.py
 
 ## OUTPUT FROM CODE:
 
-Accuracy: 0.9954648526077098
+Accuracy: 0.8639455782312925
 
 Classification Report:
               precision    recall  f1-score   support
 
-       False       1.00      0.99      1.00       291
-        True       0.99      1.00      0.99       150
+           0       0.87      0.99      0.93       380
+           1       0.56      0.08      0.14        61
 
-    accuracy                           1.00       441
-    macro avg      0.99      1.00      0.99       441
-    weighted avg   1.00      1.00      1.00       441
+    accuracy                           0.86       441
+   macro avg       0.71      0.54      0.53       441
+weighted avg       0.83      0.86      0.82       441
 
 
 Confusion Matrix:
-![Confusion](https://github.com/user-attachments/assets/969ecb2a-492c-484a-a878-73d2ca3db418)
+![confusion](https://github.com/user-attachments/assets/8b3cab61-bd35-4841-938a-0b859edf80a3)
 
 Importance Plot:
-![Importance Graph](https://github.com/user-attachments/assets/e2e7e8e4-b20b-49c8-bb06-6d0def3225f2)
+![top5](https://github.com/user-attachments/assets/7d35b9d3-b171-4946-a153-1f290aec92e9)
+
+ROC Curve:
+![roc curve](https://github.com/user-attachments/assets/040e460a-acfe-46b6-948b-965f3fde8f13)
+
+Department Morale:
+![department morale](https://github.com/user-attachments/assets/c247f9f8-c65e-4e76-9155-e359a6ec4050)
+
