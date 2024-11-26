@@ -4,6 +4,7 @@ Medium Complexity Code - Random Forest
 Initial Code - Michael Chon
 '''
 
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -15,17 +16,27 @@ from sklearn.metrics import roc_curve, auc
 # Load dataset
 def load_data():
     data = pd.read_csv("employee_attrition_data.csv")
+
+    if 'EmployeeNumber' not in data.columns:
+        raise ValueError("The dataset must include an 'EmployeeID' column.")
+    
     return data
 
 # Preprocessing function (modify as needed based on dataset)
 def preprocess_data(data):
     # Assuming the last column is the target and the rest are features
-    X = data.iloc[:, :-1]  # Features
-    y = data.iloc[:, -1]   # Target variable
+    #X = data.iloc[:, :-1]  # Features
+    #y = data.iloc[:, -1]   # Target variable
+    X = data.drop(['Attrition', 'EmployeeNumber'], axis=1)  # Remove Attrition and EmployeeID from features
+    y = data['Attrition']
+
+    # Store Employee IDs for final output
+    employee_ids = data['EmployeeNumber']
     
     # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    return X_train, X_test, y_train, y_test
+    X_train, X_test, y_train, y_test, employee_ids_train, employee_ids_test = train_test_split(
+        X, y, employee_ids, test_size=0.3, random_state=42)
+    return X_train, X_test, y_train, y_test, employee_ids_test
 
 # Function to train and evaluate the Random Forest model
 def random_forest_model(X_train, X_test, y_train, y_test):
@@ -37,6 +48,7 @@ def random_forest_model(X_train, X_test, y_train, y_test):
     
     # Make predictions
     y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
     
     # Evaluate model performance
     accuracy = accuracy_score(y_test, y_pred)
@@ -62,9 +74,13 @@ def random_forest_model(X_train, X_test, y_train, y_test):
     feature_imp_df = feature_imp_df.sort_values(by="Importance", ascending=False)
 
     top_features = feature_imp_df.head(5)
+
+    print("\nTop Features by Importance:")
+    print(top_features)  # Display top 5 features in the console
+
     # Plot the top five features
     plt.figure(figsize=(10, 6))
-    sns.barplot(x="Importance", y="Feature", data=top_features)
+    sns.barplot(x="Importance", y="Feature", data=top_features, palette="viridis")
     plt.title("Top 5 Feature Importances")
     plt.show()
     
@@ -89,14 +105,61 @@ def random_forest_model(X_train, X_test, y_train, y_test):
     else:
         print("ROC Curve cannot be computed for non-binary classification.")
 
+    return y_pred, y_prob
+
+def save_predictions(employee_ids_test, y_pred, y_prob):
+    y_rf_pred = np.where(y_pred, 1, 0)
+    # Create a DataFrame with Employee IDs, predictions, and probabilities
+    output_df = pd.DataFrame({
+        'EmployeeNumber': employee_ids_test,        # Employee IDs
+        'PredictedAttrition': y_rf_pred,            # Predictions (1 = Leave, 0 = Stay)
+        'AttritionProbability': y_prob              # Probability of Attrition
+    })
+
+    # Add a human-readable label for the prediction
+    output_df['PredictionLabel'] = output_df['PredictedAttrition'].map({1: 'Leave', 0: 'Stay'})
+
+    # Save the predictions to a CSV file for later review
+    output_filename = 'employee_attrition_predictions.csv'
+    output_df.to_csv(output_filename, index=False)
+
+    print(f"Predictions saved to {output_filename}.")
+
+# Calculate Department Morale
+def calculate_department_morale(data):
+    # Extract department columns
+    if 'Department' not in data.columns:  
+        data['Department'] = data.filter(like='Department_').idxmax(axis=1)
+
+    # Calculate morale as 1 - attrition rate
+    department_morale = data.groupby('Department')['Attrition'].mean().apply(lambda x: 1 - x)
+    
+    print("Department Morale (Higher is Better):")
+    print(department_morale)
+    
+    # Plot morale
+    plt.figure(figsize=(10, 6))
+    department_morale.sort_values().plot(kind='bar', color='skyblue', edgecolor='black')
+    plt.title('Department Morale (Higher is Better)')
+    plt.xlabel('Department')
+    plt.ylabel('Morale')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
 def main():
     data = load_data()
     if data.empty:
         print("Please replace the load_data() function to load your actual dataset.")
         return
     
-    X_train, X_test, y_train, y_test = preprocess_data(data)
-    random_forest_model(X_train, X_test, y_train, y_test)
+    X_train, X_test, y_train, y_test, employee_ids_test = preprocess_data(data)
+    y_pred, y_prob = random_forest_model(X_train, X_test, y_train, y_test)
+
+    save_predictions(employee_ids_test, y_pred, y_prob)
+
+    print("\nCalculating Department Morale:")
+    calculate_department_morale(data)
 
 if __name__ == "__main__":
     main()
