@@ -185,6 +185,8 @@ sorted_indices = np.argsort(importances)[::-1]
 sorted_features = feature_names[sorted_indices]
 sorted_importances = importances[sorted_indices]
 
+
+
 plt.figure(figsize=(10, 6))
 plt.barh(sorted_features, sorted_importances, color='skyblue', edgecolor='black')
 plt.xlabel('Importance')
@@ -193,3 +195,22 @@ plt.title('Feature Importance')
 plt.gca().invert_yaxis()
 plt.tight_layout()
 plt.show()
+
+# importances = baseline_model.feature_importances_
+# feature_names = X.columns
+# sorted_indices = np.argsort(importances)[::-1]
+
+# # Select the top 10 features
+# top_10_indices = sorted_indices[:10]
+# top_10_features = feature_names[top_10_indices]
+# top_10_importances = importances[top_10_indices]
+
+# # Plot the top 10 features
+# plt.figure(figsize=(10, 6))
+# plt.barh(top_10_features, top_10_importances, color='skyblue', edgecolor='black')
+# plt.xlabel('Importance')
+# plt.ylabel('Feature')
+# plt.title('Top 10 Feature Importance')
+# plt.gca().invert_yaxis()
+# plt.tight_layout()
+# plt.show()
