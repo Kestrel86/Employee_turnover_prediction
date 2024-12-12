@@ -20,18 +20,22 @@ def load_data(filepath='employee_attrition_data.csv'):
 def preprocess_data(data):
     if data.empty:
         print("Data is empty. Please load a valid dataset.")
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     
-    # Separate features and target
-    X = data.drop(columns='Attrition', errors='ignore')  # Drop target column
+    # Drop unnecessary columns
+    X = data.drop(['Attrition', 'EmployeeNumber'], axis=1)
     y = data['Attrition']
+
+    # Store Employee IDs for final output
+    employee_ids = data['EmployeeNumber']
 
     # Encoding for categorical features
     X = pd.get_dummies(X, drop_first=True)
 
     # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=7)
-    return X_train, X_test, y_train, y_test, data
+    X_train, X_test, y_train, y_test, employee_ids_train, employee_ids_test = train_test_split(
+        X, y, employee_ids, test_size=0.3, random_state=7)
+    return X_train, X_test, y_train, y_test, employee_ids_test, data
 
 # Evaluate the Decision Tree
 def evaluate_decision_tree(X_train, X_test, y_train, y_test, max_depth=4):
@@ -65,7 +69,7 @@ def evaluate_decision_tree(X_train, X_test, y_train, y_test, max_depth=4):
     plt.legend(loc="lower right")
     plt.show()
 
-# Feature Importance
+    # Feature Importance
     feature_importances = model.feature_importances_
     feature_names = X_train.columns
     feature_imp_df = pd.DataFrame({"Feature": feature_names, "Importance": feature_importances})
@@ -83,7 +87,25 @@ def evaluate_decision_tree(X_train, X_test, y_train, y_test, max_depth=4):
     plt.tight_layout()
     plt.show()
 
-    return model
+    return model, y_pred, y_prob
+
+# Save Predictions to CSV
+def save_predictions(employee_ids_test, y_pred, y_prob):
+    # Create a DataFrame with Employee IDs, predictions, and probabilities
+    output_df = pd.DataFrame({
+        'EmployeeNumber': employee_ids_test,          # Employee IDs
+        'PredictedAttrition': y_pred,                 # Predictions (1 = Leave, 0 = Stay)
+        'AttritionProbability': y_prob                # Probability of Attrition
+    })
+
+    # Add a human-readable label for the prediction
+    output_df['PredictionLabel'] = output_df['PredictedAttrition'].map({1: 'Leave', 0: 'Stay'})
+
+    # Save the predictions to a CSV file for later review
+    output_filename = 'employee_attrition_predictions.csv'
+    output_df.to_csv(output_filename, index=False)
+
+    print(f"Predictions saved to {output_filename}.")
 
 # Calculate Department Morale
 def calculate_department_morale(data):
@@ -114,12 +136,15 @@ def main():
         print("Please load a valid dataset.")
         return
 
-    X_train, X_test, y_train, y_test, data = preprocess_data(data)
+    X_train, X_test, y_train, y_test, employee_ids_test, data = preprocess_data(data)
     if X_train is None:
         return
 
     print("Evaluating Decision Tree:")
-    model = evaluate_decision_tree(X_train, X_test, y_train, y_test)
+    model, y_pred, y_prob = evaluate_decision_tree(X_train, X_test, y_train, y_test)
+
+    print("\nSaving Predictions to CSV:")
+    save_predictions(employee_ids_test, y_pred, y_prob)
 
     print("\nCalculating Department Morale:")
     calculate_department_morale(data)
